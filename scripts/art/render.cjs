@@ -31,11 +31,6 @@ const scenes = {
   "destinations/australia": { ...dusk, seed: 17, sky: ["#0e1a33", "#3a4f7a", "#e89a66"], motifs: ["harbour"], water: true, horizon: 0.66, sun: { x: 0.75, y: 0.58 } },
   "articles/green-card": { ...night, seed: 41, glow: "#f2c48a", motifs: ["skyline"], water: true, horizon: 0.64, width: 1600, height: 900, sun: { x: 0.2, y: 0.25, r: 0.02 } },
   "articles/canada-visitor": { ...dawn, seed: 44, motifs: ["mountains"], water: true, horizon: 0.6, width: 1600, height: 900, sun: { x: 0.7, y: 0.45 } },
-  "hero/sky": {
-    ...dusk, seed: 5, width: 2400, height: 1400, sky: ["#060c1c", "#16264c", "#c97f5e"], glow: "#f5b46c",
-    motifs: ["clouds"], cloudTop: "#d8b49a", cloudBottom: "#1b2442", backRidge: false, water: false,
-    fore: "#0b1226", horizon: 0.6, sun: { x: 0.72, y: 0.6, r: 0.035 },
-  },
   "about/jaffna": { ...gold, seed: 52, sky: ["#101632", "#5a4258", "#eaa86a"], motifs: ["islands"], water: true, horizon: 0.62, sun: { x: 0.6, y: 0.56 } },
 };
 

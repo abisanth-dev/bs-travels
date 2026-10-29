@@ -29,7 +29,7 @@ export function Logo({ className = "" }: { className?: string }) {
       </svg>
       <span className="leading-none">
         <span className="font-display block text-[1.15rem] font-semibold tracking-tight">BS Travels</span>
-        <span className="mt-1 block text-[0.6rem] uppercase tracking-[0.24em] text-ivory-faint">Jaffna · Sri Lanka</span>
+        <span className="mt-1 block whitespace-nowrap text-[0.6rem] uppercase tracking-[0.24em] text-ivory-faint">Jaffna · Sri Lanka</span>
       </span>
     </span>
   );

@@ -97,12 +97,14 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Link href="/appointment" className="hidden text-[0.92rem] text-ivory-dim hover:text-ivory xl:inline-block xl:px-3">
+          <Link href="/appointment" className="hidden min-h-11 items-center text-[0.92rem] text-ivory-dim hover:text-ivory xl:inline-flex xl:px-3">
             Appointment
           </Link>
-          <Link href="/enquire" className={buttonClass("primary", "hidden min-h-11 px-5 sm:inline-flex")}>
-            Plan My Journey
-          </Link>
+          <span className="hidden sm:block">
+            <Link href="/enquire" className={buttonClass("primary", "min-h-11 px-5")}>
+              Plan My Journey
+            </Link>
+          </span>
           <button
             ref={toggleRef}
             type="button"

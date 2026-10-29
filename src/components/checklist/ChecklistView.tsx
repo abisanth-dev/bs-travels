@@ -59,7 +59,7 @@ export function ChecklistView({ checklist }: { checklist: Checklist }) {
     <div className="print-plain">
       <div className="print-only mb-6">
         <p style={{ fontSize: 12 }}>BS Travels (Private) Limited · #338, Navalar Road, Jaffna · +94 77 4481 790</p>
-        <h1 style={{ fontSize: 26, marginTop: 8 }}>{checklist.title}</h1>
+        <p style={{ fontSize: 26, marginTop: 8 }}>{checklist.title}</p>
         <p style={{ fontSize: 12, marginTop: 8 }}>{checklistNotice}</p>
       </div>
 

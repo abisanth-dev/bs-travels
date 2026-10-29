@@ -248,7 +248,7 @@ export function HeroScene({ tier }: { tier: SceneTier }) {
     if (g) {
       PATH.getPointAt(p, pos);
       PATH.getTangentAt(Math.min(0.999, p + 0.001), tangent);
-      g.position.set(pos.x + (narrow ? -3.1 : 0), pos.y + Math.sin(t * 0.8) * 0.08 + (narrow ? 1.4 : 0), pos.z);
+      g.position.set(pos.x + (narrow ? -2.5 : 0), pos.y + Math.sin(t * 0.8) * 0.08 + (narrow ? 4.2 : 0), pos.z);
       const pitch = Math.atan2(tangent.y, Math.hypot(tangent.x, tangent.z));
       g.rotation.set(
         // bank gently, more as it turns down the page
@@ -285,7 +285,7 @@ export function HeroScene({ tier }: { tier: SceneTier }) {
         <Lightformer form="rect" intensity={0.6} color="#c9d2ee" position={[-10, 6, 6]} scale={[16, 10, 1]} />
         <Lightformer form="rect" intensity={0.35} color="#1c2442" position={[0, -8, 0]} rotation-x={Math.PI / 2} scale={[40, 40, 1]} />
       </Environment>
-      <group ref={plane} scale={narrow ? 0.5 : 0.62}>
+      <group ref={plane} scale={narrow ? 0.42 : 0.62}>
         <Aircraft detail={high ? "high" : "low"} />
       </group>
       <Trail target={plane} progress={heroProgress} />

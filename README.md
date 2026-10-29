@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BS Travels website
 
-## Getting Started
+The website for BS Travels (Private) Limited, #338 Navalar Road, Jaffna, Sri Lanka.
 
-First, run the development server:
+Built with Next.js (App Router, TypeScript), Tailwind CSS 4, React Three Fiber + Drei, and GSAP ScrollTrigger.
+
+## Run it
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # http://localhost:3000
+npm run build && npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Copy `.env.example` to `.env.local` and fill in what you need. Without any form provider the site still works: enquiries and appointment requests are handed off to WhatsApp or email, prefilled, and clearly labelled as not yet sent.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Forms
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+`/enquire`, `/contact` and `/appointment` post to `/api/enquiry` and `/api/appointment`. The server validates with zod, checks a honeypot field, a minimum fill time and a per-instance rate limit, then delivers through one provider:
 
-## Learn More
+| `FORM_PROVIDER` | Required variables |
+|---|---|
+| `resend` | `RESEND_API_KEY`, `FORM_TO_EMAIL`, `FORM_FROM_EMAIL` (a sender on a domain verified in Resend) |
+| `webhook` | `FORM_WEBHOOK_URL`, optional `FORM_WEBHOOK_TOKEN` (sent as a Bearer token) |
 
-To learn more about Next.js, take a look at the following resources:
+The browser only shows a success message when the provider accepted the data. With no provider the API answers `503 not_configured` and the UI offers the handoff. Personal data is never logged. Static pages read the configuration at build time, so redeploy after changing these variables.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Appointment requests are requests only. Nothing in the site confirms a time.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Content
 
-## Deploy on Vercel
+All content is typed and lives in `src/content/` (business settings, services, destinations, courses, checklists, FAQs, articles, navigation), ready to be swapped for a CMS later.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Logo:** set `site.brand.logo` in `src/content/site.ts` once the original file is in `public/brand/`. A text wordmark is used until then.
+- **Palette:** accent colours in `src/app/globals.css` are provisional until the logo can be inspected.
+- **Director portrait:** set `site.managingDirector.portrait` only with a genuine photo.
+- **Images:** destination, article and about images in `public/images/` are generated placeholders (`node scripts/art/render.cjs`). Replace any file with a licensed photo of the same name, or set `image` on a destination.
+- **Hero poster:** `public/images/hero/poster.jpg` is a still of the 3D scene, shown while 3D loads and to visitors who get no 3D.
+- **Globe:** `public/globe/land-points.json` and `public/images/globe/static.png` come from `scripts/generate-land-points.py` and `scripts/generate-static-globe.py`.
+- **Articles:** the two 2023 posts have status `archive-review`. They show an archive notice, are `noindex`, and stay out of the sitemap until set to `published`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 3D and motion
+
+One lazily loaded WebGL canvas (`src/components/three/Stage.tsx`) renders the hero aircraft and the globe into their DOM slots with Drei `View`. It stops rendering when neither is on screen or the tab is hidden. Visitors with reduced motion, data saver or no WebGL get static artwork; phones and modest hardware get a lighter scene. Force a tier with `?3d=off`, `?3d=low` or `?3d=high`.
+
+GSAP ScrollTrigger is the only scroll-driven animation system (hero flight progress, globe arc reveal, flight path, text reveals).
+
+## Old URLs
+
+`next.config.ts` maps the old WordPress URLs with 301 redirects, including `/appionment/` to `/appointment`. Theme demo pages (portfolio, case studies, shop, shortcode) are not carried over and return 404.
