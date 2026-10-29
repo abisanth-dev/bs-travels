@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CtaBand } from "@/components/layout/CtaBand";
@@ -5,6 +6,7 @@ import { Container } from "@/components/layout/Container";
 import { PageHero } from "@/components/layout/PageHero";
 import { LinkButton } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
+import { Mini3D } from "@/components/three/Mini3D";
 import { publishedArticles } from "@/content/articles";
 import { getChecklist } from "@/content/checklists";
 import { courses } from "@/content/courses";
@@ -83,6 +85,10 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
               <dd className="mt-1 text-ivory">About {km.toLocaleString("en-US")} km, as the crow flies</dd>
             </div>
           </dl>
+          <Mini3D spec={{ type: "route", lat: d.marker.lat, lng: d.marker.lng }} className="mt-10 aspect-square w-full max-w-md">
+            <Image src="/images/globe/static.png" alt="" fill sizes="28rem" className="object-contain opacity-80" />
+          </Mini3D>
+          <p className="mt-2 max-w-md text-xs text-ivory-faint">Route from our Jaffna office to {d.marker.place}. The marker shows an enquiry destination, not a BS Travels office.</p>
         </div>
         <div className="space-y-12">
           <section aria-labelledby="help">

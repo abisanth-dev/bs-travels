@@ -1,17 +1,20 @@
 import { Container } from "@/components/layout/Container";
 import { AnchorButton, LinkButton } from "@/components/ui/Button";
 import { whatsappHref } from "@/content/site";
+import { StageSlot, StaticOnly } from "./StageSlot";
 
 /** The flight path comes in to land on this warm horizon. */
 export function FinalCta() {
   return (
-    <section data-flight="final" aria-labelledby="final-title" className="relative isolate overflow-hidden pb-28 pt-36 sm:pb-36 sm:pt-48">
-      <div className="absolute inset-0 -z-10" aria-hidden>
+    <section data-flight="final" aria-labelledby="final-title" className="relative isolate overflow-hidden min-h-[100svh] pb-40 pt-36 sm:pb-56 sm:pt-48">
+      <StageSlot name="finale" className="absolute inset-0 -z-10" />
+      <StaticOnly className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute inset-0 bg-gradient-to-b from-navy via-[#1a1f3d] to-[#3a2a3a]" />
         <div className="absolute inset-x-0 bottom-0 h-[70%] bg-[radial-gradient(60%_70%_at_50%_100%,rgb(240_168_104/0.55),rgb(228_138_92/0.18)_45%,transparent_75%)]" />
         <div className="absolute inset-x-[-10%] bottom-[18%] h-px bg-gradient-to-r from-transparent via-[#f6c995] to-transparent opacity-80" />
         <div className="absolute inset-x-0 bottom-0 h-[18%] bg-gradient-to-b from-[#2b1f2c] to-night" />
-      </div>
+      </StaticOnly>
+      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[60%] bg-gradient-to-b from-navy via-navy/55 to-transparent" aria-hidden />
       <Container className="relative text-center">
         <p className="eyebrow" data-reveal>
           Your journey starts in Jaffna

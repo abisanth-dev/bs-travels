@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -42,6 +43,12 @@ type StageContextValue = {
   globeInput: MutableRefObject<GlobeInteraction>;
   /** DOM label elements positioned by the globe scene each frame. */
   globeLabels: MutableRefObject<Map<string, HTMLElement>>;
+  /** True once the 3D stage is drawing (so DOM fallbacks can step aside). */
+  live: boolean;
+  /** Named DOM slots that the shared canvas renders extra scenes into. */
+  slot: (name: string) => RefObject<HTMLElement | null>;
+  /** 0 to 1 as the final section scrolls into place. Written by GSAP. */
+  finaleProgress: MutableRefObject<number>;
 };
 
 const StageContext = createContext<StageContextValue | null>(null);
@@ -66,6 +73,16 @@ export function HomeExperience({ children }: { children: ReactNode }) {
   const pointer = useRef({ x: 0, y: 0 });
   const globeInput = useRef<GlobeInteraction>({ dragging: false, dx: 0, dy: 0, lastInteraction: 0 });
   const globeLabels = useRef(new Map<string, HTMLElement>());
+  const finaleProgress = useRef(0);
+  const slots = useRef(new Map<string, { current: HTMLElement | null }>());
+  const slot = useCallback((name: string) => {
+    let r = slots.current.get(name);
+    if (!r) {
+      r = { current: null };
+      slots.current.set(name, r);
+    }
+    return r;
+  }, []);
 
   // Load the 3D bundle once the page is idle, so text and CTAs come first.
   useEffect(() => {
@@ -117,8 +134,20 @@ export function HomeExperience({ children }: { children: ReactNode }) {
         }),
       );
     }
+    const finale = slot("finale").current;
+    if (finale) {
+      triggers.push(
+        ScrollTrigger.create({
+          trigger: finale,
+          start: "top bottom",
+          end: "bottom bottom",
+          scrub: true,
+          onUpdate: (self) => (finaleProgress.current = self.progress),
+        }),
+      );
+    }
     return () => triggers.forEach((t) => t.kill());
-  }, []);
+  }, [slot]);
 
   // Text reveals: short, once, and skipped for reduced motion.
   useEffect(() => {
@@ -156,8 +185,11 @@ export function HomeExperience({ children }: { children: ReactNode }) {
       setSelected,
       globeInput,
       globeLabels,
+      live: ready && (tier === "low" || tier === "high"),
+      slot,
+      finaleProgress,
     }),
-    [tier, ready, selected],
+    [tier, ready, selected, slot],
   );
 
   return (

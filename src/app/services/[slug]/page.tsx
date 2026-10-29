@@ -6,6 +6,7 @@ import { PageHero } from "@/components/layout/PageHero";
 import { Accordion } from "@/components/ui/Accordion";
 import { LinkButton } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
+import { Mini3D } from "@/components/three/Mini3D";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { getChecklist } from "@/content/checklists";
 import { getFaqs } from "@/content/faqs";
@@ -53,9 +54,13 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
 
       <Container className="grid gap-16 pb-24 lg:grid-cols-[1fr_1.2fr]">
         <div className="lg:sticky lg:top-28 lg:self-start">
-          <span className="flex h-20 w-20 items-center justify-center rounded-full border border-line-strong text-gold">
-            <Icon name={s.icon} size={36} strokeWidth={1.2} />
-          </span>
+          <Mini3D spec={{ type: "service", slug: s.slug }} className="aspect-[4/3] w-full max-w-md">
+            <span className="flex h-full items-center justify-center">
+              <span className="flex h-24 w-24 items-center justify-center rounded-full border border-line-strong text-gold">
+                <Icon name={s.icon} size={40} strokeWidth={1.2} />
+              </span>
+            </span>
+          </Mini3D>
           {s.intro.slice(1).map((p) => (
             <p key={p} className="mt-8 text-xl leading-relaxed text-ivory-dim">
               {p}

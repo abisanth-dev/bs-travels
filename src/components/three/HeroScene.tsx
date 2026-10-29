@@ -224,6 +224,130 @@ function Trail({ target, progress }: { target: React.RefObject<THREE.Group | nul
   return <primitive object={line} frustumCulled={false} />;
 }
 
+
+/** Fine ice crystals drifting past the camera, catching the sun. */
+function AirParticles({ count }: { count: number }) {
+  const ref = useRef<THREE.Points>(null);
+  const { positions, speeds } = useMemo(() => {
+    let seed = 21;
+    const r = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const positions = new Float32Array(count * 3);
+    const speeds = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      positions[i * 3] = (r() - 0.5) * 30;
+      positions[i * 3 + 1] = (r() - 0.5) * 12;
+      positions[i * 3 + 2] = -10 + r() * 18;
+      speeds[i] = 0.6 + r() * 1.4;
+    }
+    return { positions, speeds };
+  }, [count]);
+  const tex = useMemo(() => {
+    const c = document.createElement("canvas");
+    c.width = c.height = 64;
+    const g = c.getContext("2d")!;
+    const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, "rgba(255,255,255,1)");
+    grad.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 64, 64);
+    return new THREE.CanvasTexture(c);
+  }, []);
+  useFrame((_, delta) => {
+    const pts = ref.current;
+    if (!pts) return;
+    const a = pts.geometry.attributes.position.array as Float32Array;
+    for (let i = 0; i < count; i++) {
+      a[i * 3] -= speeds[i] * delta * 1.6;
+      if (a[i * 3] < -15) a[i * 3] = 15;
+    }
+    pts.geometry.attributes.position.needsUpdate = true;
+  });
+  return (
+    <points ref={ref} frustumCulled={false}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+      </bufferGeometry>
+      <pointsMaterial map={tex} color="#ffd9a8" size={0.09} transparent opacity={0.7} depthWrite={false} blending={THREE.AdditiveBlending} sizeAttenuation />
+    </points>
+  );
+}
+
+/** Soft lens glare from the low sun, drawn as a few additive discs. */
+function SunGlare() {
+  const tex = useMemo(() => {
+    const c = document.createElement("canvas");
+    c.width = c.height = 128;
+    const g = c.getContext("2d")!;
+    const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    grad.addColorStop(0, "rgba(255,255,255,0.9)");
+    grad.addColorStop(0.3, "rgba(255,255,255,0.25)");
+    grad.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 128, 128);
+    return new THREE.CanvasTexture(c);
+  }, []);
+  const sun = SUN_DIR.clone().multiplyScalar(120);
+  return (
+    <group>
+      <sprite position={sun} scale={[70, 70, 1]}>
+        <spriteMaterial map={tex} color="#ffb070" transparent opacity={0.55} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+      </sprite>
+      <sprite position={sun} scale={[160, 18, 1]}>
+        <spriteMaterial map={tex} color="#ff9a5a" transparent opacity={0.35} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+      </sprite>
+    </group>
+  );
+}
+
+/** A second airliner far off, drawing a long contrail across the sky. */
+function DistantJet() {
+  const g = useRef<THREE.Group>(null);
+  const points = 90;
+  const geo = useMemo(() => {
+    const b = new THREE.BufferGeometry();
+    b.setAttribute("position", new THREE.BufferAttribute(new Float32Array(points * 3), 3));
+    const a = new Float32Array(points);
+    for (let i = 0; i < points; i++) a[i] = i / (points - 1);
+    b.setAttribute("alpha", new THREE.BufferAttribute(a, 1));
+    return b;
+  }, []);
+  const mat = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        uniforms: { uColor: { value: new THREE.Color("#ffe6cc") } },
+        vertexShader: `attribute float alpha; varying float vA; void main(){ vA = alpha; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);} `,
+        fragmentShader: `uniform vec3 uColor; varying float vA; void main(){ gl_FragColor = vec4(uColor, vA * 0.55); }`,
+      }),
+    [],
+  );
+  const line = useMemo(() => new THREE.Line(geo, mat), [geo, mat]);
+  useFrame(({ clock }) => {
+    const t = (clock.elapsedTime * 0.035) % 1;
+    const x = 70 - t * 140;
+    const y = 9 + t * 2.5;
+    const z = -70;
+    if (g.current) g.current.position.set(x, y, z);
+    const arr = geo.attributes.position.array as Float32Array;
+    for (let i = 0; i < points; i++) {
+      const back = (points - 1 - i) * 0.6;
+      arr[i * 3] = x + 1.8 + back;
+      arr[i * 3 + 1] = y - back * (2.5 / 140) + Math.sin(i * 0.3) * 0.02;
+      arr[i * 3 + 2] = z;
+    }
+    geo.attributes.position.needsUpdate = true;
+  });
+  return (
+    <>
+      <group ref={g} rotation={[0.1, Math.PI, 0.02]} scale={0.35}>
+        <Aircraft detail="low" />
+      </group>
+      <primitive object={line} frustumCulled={false} />
+    </>
+  );
+}
+
 /** Flight path the aircraft follows as the hero scrolls away. */
 const PATH = new THREE.CatmullRomCurve3([
   new THREE.Vector3(3.7, 0.05, 0),
@@ -285,7 +409,10 @@ export function HeroScene({ tier }: { tier: SceneTier }) {
         <Lightformer form="rect" intensity={0.6} color="#c9d2ee" position={[-10, 6, 6]} scale={[16, 10, 1]} />
         <Lightformer form="rect" intensity={0.35} color="#1c2442" position={[0, -8, 0]} rotation-x={Math.PI / 2} scale={[40, 40, 1]} />
       </Environment>
-      <group ref={plane} scale={narrow ? 0.42 : 0.62}>
+      <SunGlare />
+      <AirParticles count={high ? 420 : 160} />
+      {high ? <DistantJet /> : null}
+      <group ref={plane} scale={narrow ? 0.42 : 0.7}>
         <Aircraft detail={high ? "high" : "low"} />
       </group>
       <Trail target={plane} progress={heroProgress} />

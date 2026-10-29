@@ -17,7 +17,7 @@ export function PrepareSection() {
   const total = checklistItemCount(current);
 
   return (
-    <section data-flight="prepare" aria-labelledby="prepare-title" className="relative bg-navy py-28 sm:py-36">
+    <section data-flight="prepare" aria-labelledby="prepare-title" className="relative overflow-x-clip bg-navy py-28 sm:py-36">
       <Container className="grid gap-14 lg:grid-cols-2 lg:items-center">
         <div data-reveal>
           <p className="eyebrow">Journey preparation</p>

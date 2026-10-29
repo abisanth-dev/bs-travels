@@ -3,6 +3,7 @@ import { Container } from "@/components/layout/Container";
 import { Icon } from "@/components/ui/Icon";
 import { services } from "@/content/services";
 import { BoardingPassMotif, DocumentMotif, LuggageMotif, PassportMotif } from "./Motifs";
+import { StageSlot, StaticOnly } from "./StageSlot";
 
 const featuredMotif: Record<string, React.ReactNode> = {
   "visa-consultancy": <PassportMotif className="h-full w-full" />,
@@ -14,7 +15,7 @@ export function ServicesSection() {
   const featured = services.filter((s) => s.featured);
   const supporting = services.filter((s) => !s.featured);
   return (
-    <section id="services" aria-labelledby="services-title" className="relative scroll-mt-20 bg-navy py-28 sm:py-36">
+    <section id="services" aria-labelledby="services-title" className="relative scroll-mt-20 py-28 sm:py-36">
       <Container>
         <div className="grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:items-end">
           <div data-reveal>
@@ -37,22 +38,23 @@ export function ServicesSection() {
               key={s.slug}
               data-reveal
               data-reveal-delay={i * 0.08}
-              className={`group relative overflow-hidden rounded-[1.75rem] border border-line bg-navy-2 ${
+              className={`group relative overflow-hidden rounded-[1.75rem] border border-line ${
                 i === 0 ? "lg:col-span-3 lg:row-span-2" : "lg:col-span-3"
               }`}
             >
-              <Link href={`/services/${s.slug}`} className="flex h-full flex-col p-7 sm:p-9">
+              <StageSlot name={`svc-${s.slug}`} className="absolute inset-0" idleClassName="bg-navy-2" />
+              <Link href={`/services/${s.slug}`} className="relative flex h-full flex-col p-7 sm:p-9">
                 <div className="flex items-start justify-between gap-6">
                   <span className="font-display text-sm text-gold">0{i + 1}</span>
                   <Icon name="arrow-up-right" size={22} className="text-ivory-faint transition-colors group-hover:text-gold" />
                 </div>
-                <div
-                  className={`pointer-events-none mx-auto my-6 w-full text-ivory/70 transition-transform duration-700 ease-out-soft group-hover:-translate-y-1 ${
-                    i === 0 ? "max-w-[22rem] lg:my-12" : "max-w-[18rem]"
+                <StaticOnly
+                  className={`pointer-events-none mx-auto my-6 w-full text-ivory/70 ${
+                    i === 0 ? "max-w-[22rem] lg:my-12 lg:min-h-[18rem]" : "max-w-[18rem] min-h-[9rem]"
                   }`}
                 >
                   {featuredMotif[s.slug]}
-                </div>
+                </StaticOnly>
                 <div className="mt-auto">
                   <h3 className={`font-display leading-tight ${i === 0 ? "text-4xl sm:text-5xl" : "text-3xl"}`}>{s.name}</h3>
                   <p className="mt-3 max-w-md leading-relaxed text-ivory-dim">{s.summary}</p>
@@ -65,12 +67,14 @@ export function ServicesSection() {
           ))}
         </ol>
 
-        <div className="mt-5 grid gap-10 rounded-[1.75rem] border border-line p-7 sm:p-9 lg:grid-cols-[0.8fr_2fr]">
-          <div data-reveal>
+        <div className="relative mt-5 grid gap-10 overflow-hidden rounded-[1.75rem] border border-line p-7 sm:p-9 lg:grid-cols-[0.8fr_2fr]">
+          <div data-reveal className="relative">
             <h3 className="font-display text-2xl">Also from our Jaffna office</h3>
-            <div className="mt-6 hidden max-w-[16rem] text-ivory/60 lg:block">
-              <DocumentMotif className="h-full w-full" />
-            </div>
+            <StageSlot name="svc-more" className="relative mt-6 hidden aspect-square max-w-[18rem] lg:block">
+              <StaticOnly className="absolute inset-0 text-ivory/60">
+                <DocumentMotif className="h-full w-full" />
+              </StaticOnly>
+            </StageSlot>
           </div>
           <ol className="divide-y divide-line border-y border-line">
             {supporting.map((s, i) => (

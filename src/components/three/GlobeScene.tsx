@@ -33,7 +33,7 @@ const dotsFragment = /* glsl */ `
     gl_FragColor = vec4(uColor, a);
   }
 `;
-const atmoVertex = /* glsl */ `
+export const atmoVertex = /* glsl */ `
   varying vec3 vNormal; varying vec3 vView;
   void main() {
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
@@ -42,7 +42,7 @@ const atmoVertex = /* glsl */ `
     gl_Position = projectionMatrix * mv;
   }
 `;
-const atmoFragment = /* glsl */ `
+export const atmoFragment = /* glsl */ `
   uniform vec3 uColor;
   varying vec3 vNormal; varying vec3 vView;
   void main() {
@@ -52,7 +52,7 @@ const atmoFragment = /* glsl */ `
   }
 `;
 
-function LandDots({ stride }: { stride: number }) {
+export function LandDots({ stride }: { stride: number }) {
   const [positions, setPositions] = useState<Float32Array | null>(null);
   useEffect(() => {
     let alive = true;
@@ -88,58 +88,140 @@ function LandDots({ stride }: { stride: number }) {
   );
 }
 
-type ArcObject = { slug: string; line: THREE.Line; count: number; mat: THREE.LineBasicMaterial };
+export const arcVertex = /* glsl */ `
+  varying float vU;
+  void main() { vU = uv.x; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+`;
+export const arcFragment = /* glsl */ `
+  uniform vec3 uColor; uniform float uOpacity; uniform float uTime; uniform float uReveal; uniform float uOffset;
+  varying float vU;
+  void main() {
+    if (vU > uReveal) discard;
+    // pulses of light flowing from Jaffna outwards
+    float flow = pow(fract(vU * 3.0 - uTime * 0.35 + uOffset), 6.0);
+    float ends = smoothstep(0.0, 0.04, vU) * smoothstep(1.0, 0.96, vU);
+    gl_FragColor = vec4(uColor * (1.0 + flow * 1.6), (0.35 + flow * 0.65) * uOpacity * ends);
+  }
+`;
 
-function Arcs({ group }: { group: React.RefObject<THREE.Group | null> }) {
+type ArcObject = {
+  slug: string;
+  curve: THREE.CatmullRomCurve3;
+  mesh: THREE.Mesh;
+  mat: THREE.ShaderMaterial;
+};
+
+/** A tiny paper-plane glyph that flies along a route. */
+export function makePlaneGeometry() {
+  const shape = new THREE.Shape();
+  shape.moveTo(0.03, 0);
+  shape.lineTo(-0.02, 0.02);
+  shape.lineTo(-0.012, 0);
+  shape.lineTo(-0.02, -0.02);
+  shape.closePath();
+  return new THREE.ShapeGeometry(shape);
+}
+
+function Arcs({ group, tier }: { group: React.RefObject<THREE.Group | null>; tier: SceneTier }) {
   const { selected, globeReveal } = useStage();
   const arcs = useMemo<ArcObject[]>(
     () =>
-      destinations.map((d) => {
-        const pts = arcPoints(origin, d.marker, 72, 1.0);
-        const geo = new THREE.BufferGeometry().setFromPoints(pts.map((p) => new THREE.Vector3(...p)));
-        const mat = new THREE.LineBasicMaterial({ color: GOLD, transparent: true, opacity: 0.38, depthWrite: false });
-        return { slug: d.slug, line: new THREE.Line(geo, mat), count: pts.length, mat };
+      destinations.map((d, i) => {
+        const pts = arcPoints(origin, d.marker, 72, 1.0).map((p) => new THREE.Vector3(...p));
+        const curve = new THREE.CatmullRomCurve3(pts);
+        const geo = new THREE.TubeGeometry(curve, tier === "high" ? 96 : 48, 0.0042, 6, false);
+        const mat = new THREE.ShaderMaterial({
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+          uniforms: {
+            uColor: { value: GOLD.clone() },
+            uOpacity: { value: 0.6 },
+            uTime: { value: 0 },
+            uReveal: { value: 0 },
+            uOffset: { value: i * 0.37 },
+          },
+          vertexShader: arcVertex,
+          fragmentShader: arcFragment,
+        });
+        return { slug: d.slug, curve, mesh: new THREE.Mesh(geo, mat), mat };
       }),
-    [],
+    [tier],
   );
-  const traveller = useRef<THREE.Mesh>(null);
-  const travelT = useRef(0);
+  const planeGeo = useMemo(makePlaneGeometry, []);
+  const planes = useRef<(THREE.Mesh | null)[]>([]);
   const tmp = useMemo(() => new THREE.Vector3(), []);
+  const ahead = useMemo(() => new THREE.Vector3(), []);
+  const up = useMemo(() => new THREE.Vector3(), []);
+  const m = useMemo(() => new THREE.Matrix4(), []);
 
-  useFrame((_, delta) => {
+  useFrame(({ clock }, delta) => {
+    const t = clock.elapsedTime;
     const reveal = THREE.MathUtils.clamp(globeReveal.current * 1.25, 0, 1);
     arcs.forEach((a, i) => {
       // stagger the draw-in so the arcs fan out from Jaffna
       const local = THREE.MathUtils.clamp(reveal * 1.6 - i * 0.04, 0, 1);
-      a.line.geometry.setDrawRange(0, Math.floor(a.count * local));
+      a.mat.uniforms.uReveal.value = local;
+      a.mat.uniforms.uTime.value = t;
       const isSel = a.slug === selected;
-      const target = selected ? (isSel ? 1 : 0.14) : 0.4;
-      a.mat.opacity = THREE.MathUtils.damp(a.mat.opacity, target, 6, delta);
-    });
-    const sel = arcs.find((a) => a.slug === selected);
-    const t = traveller.current;
-    if (t) {
-      t.visible = Boolean(sel);
-      if (sel) {
-        travelT.current = (travelT.current + delta * 0.22) % 1;
-        const attr = sel.line.geometry.attributes.position as THREE.BufferAttribute;
-        const idx = Math.floor(travelT.current * (sel.count - 1));
-        tmp.fromBufferAttribute(attr, idx);
-        t.position.copy(tmp);
+      const target = selected ? (isSel ? 1.6 : 0.25) : 0.7;
+      a.mat.uniforms.uOpacity.value = THREE.MathUtils.damp(a.mat.uniforms.uOpacity.value, target, 6, delta);
+      const pl = planes.current[i];
+      if (pl) {
+        // every route has a plane in flight; the selected one flies faster
+        const speed = isSel ? 0.16 : 0.06;
+        const u = Math.min(local, (t * speed + i * 0.13) % 1);
+        a.curve.getPointAt(u, tmp);
+        a.curve.getPointAt(Math.min(1, u + 0.01), ahead);
+        up.copy(tmp).normalize();
+        m.lookAt(ahead, tmp, up);
+        pl.position.copy(tmp);
+        pl.quaternion.setFromRotationMatrix(m);
+        pl.rotateY(-Math.PI / 2);
+        pl.rotateX(Math.PI / 2);
+        pl.visible = local > 0.98 && (!selected || isSel);
+        pl.scale.setScalar(isSel ? 1.6 : 1);
       }
-    }
+    });
   });
 
   return (
     <group ref={group}>
-      {arcs.map((a) => (
-        <primitive key={a.slug} object={a.line} />
+      {arcs.map((a, i) => (
+        <group key={a.slug}>
+          <primitive object={a.mesh} />
+          <mesh ref={(el) => void (planes.current[i] = el)} geometry={planeGeo}>
+            <meshBasicMaterial color="#fff2d6" side={THREE.DoubleSide} />
+          </mesh>
+        </group>
       ))}
-      <mesh ref={traveller}>
-        <sphereGeometry args={[0.014, 12, 12]} />
-        <meshBasicMaterial color="#fff2d6" />
-      </mesh>
     </group>
+  );
+}
+
+/** Distant stars behind the globe. */
+function Stars({ count }: { count: number }) {
+  const positions = useMemo(() => {
+    let s = 5;
+    const r = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+    const a = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      const th = r() * Math.PI * 2;
+      const ph = Math.acos(2 * r() - 1);
+      const rad = 9 + r() * 6;
+      a[i * 3] = rad * Math.sin(ph) * Math.cos(th);
+      a[i * 3 + 1] = rad * Math.cos(ph);
+      a[i * 3 + 2] = -Math.abs(rad * Math.sin(ph) * Math.sin(th));
+    }
+    return a;
+  }, [count]);
+  return (
+    <points>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+      </bufferGeometry>
+      <pointsMaterial color="#cfd8f0" size={0.035} transparent opacity={0.7} depthWrite={false} />
+    </points>
   );
 }
 
@@ -262,6 +344,7 @@ export function GlobeScene({ tier }: { tier: SceneTier }) {
     <>
       <PerspectiveCamera makeDefault position={[0, 0, 3.3]} fov={42} />
       <ambientLight intensity={0.6} />
+      <Stars count={tier === "high" ? 500 : 220} />
       <group ref={globe}>
         <mesh>
           <sphereGeometry args={[1, 64, 48]} />
@@ -269,7 +352,7 @@ export function GlobeScene({ tier }: { tier: SceneTier }) {
         </mesh>
         <LandDots stride={tier === "high" ? 1 : 2} />
         <Markers />
-        <Arcs group={arcGroup} />
+        <Arcs group={arcGroup} tier={tier} />
       </group>
       <mesh scale={1.16}>
         <sphereGeometry args={[1, 64, 48]} />

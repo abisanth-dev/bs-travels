@@ -2,10 +2,12 @@
 
 import { Canvas, useFrame } from "@react-three/fiber";
 import { View } from "@react-three/drei";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStage } from "@/components/home/HomeExperience";
 import { HeroScene } from "./HeroScene";
 import { GlobeScene } from "./GlobeScene";
+import { FinaleScene } from "./FinaleScene";
+import { ServiceCardScene, SupportingScene } from "./ObjectScenes";
 
 /** Clears the shared canvas each frame before the views draw into it. */
 function Clearer() {
@@ -16,48 +18,57 @@ function Clearer() {
   return null;
 }
 
+const FEATURED = ["visa-consultancy", "air-ticketing", "immigration-support"];
+
 /**
  * The single, lazily loaded WebGL canvas for the homepage. It sits fixed
- * behind the page and draws into the DOM slots it tracks, so the hero
- * aircraft and the globe share one context.
+ * behind the page and draws into the DOM slots it tracks, so the hero,
+ * service objects, globe and landing all share one context.
  */
 export default function Stage() {
-  const { tier, heroSlot, globeSlot, setReady } = useStage();
-  const [visible, setVisible] = useState({ hero: true, globe: false });
+  const { tier, heroSlot, globeSlot, slot, setReady } = useStage();
+  const slots = useMemo(() => {
+    const named: [string, React.RefObject<HTMLElement | null>][] = [
+      ["hero", heroSlot],
+      ["globe", globeSlot],
+      ...FEATURED.map((s): [string, React.RefObject<HTMLElement | null>] => [`svc-${s}`, slot(`svc-${s}`)]),
+      ["svc-more", slot("svc-more")],
+      ["finale", slot("finale")],
+    ];
+    return named;
+  }, [heroSlot, globeSlot, slot]);
+  const [visible, setVisible] = useState<Record<string, boolean>>({ hero: true });
   const [pageVisible, setPageVisible] = useState(true);
 
-  // Stop rendering entirely when neither scene is on screen or the tab is hidden.
+  // Stop rendering entirely when no scene is on screen or the tab is hidden.
   useEffect(() => {
-    const entries: [keyof typeof visible, HTMLElement | null][] = [
-      ["hero", heroSlot.current],
-      ["globe", globeSlot.current],
-    ];
     const io = new IntersectionObserver(
-      (list) => {
+      (list) =>
         setVisible((prev) => {
           const next = { ...prev };
           list.forEach((e) => {
-            const key = entries.find(([, el]) => el === e.target)?.[0];
+            const key = slots.find(([, r]) => r.current === e.target)?.[0];
             if (key) next[key] = e.isIntersecting;
           });
           return next;
-        });
-      },
+        }),
       { rootMargin: "120px 0px" },
     );
-    entries.forEach(([, el]) => el && io.observe(el));
+    slots.forEach(([, r]) => r.current && io.observe(r.current));
     const onVis = () => setPageVisible(document.visibilityState === "visible");
     document.addEventListener("visibilitychange", onVis);
     return () => {
       io.disconnect();
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [heroSlot, globeSlot]);
+  }, [slots]);
 
   useEffect(() => () => setReady(false), [setReady]);
 
-  const active = pageVisible && (visible.hero || visible.globe);
+  const active = pageVisible && Object.values(visible).some(Boolean);
   const high = tier === "high";
+  const track = (name: string) => slots.find(([n]) => n === name)![1] as React.RefObject<HTMLElement>;
+  const shown = (name: string) => Boolean(visible[name]) && Boolean(track(name).current);
 
   return (
     <Canvas
@@ -75,11 +86,22 @@ export default function Stage() {
       }}
     >
       <Clearer />
-      <View track={heroSlot as React.RefObject<HTMLElement>} visible={visible.hero}>
+      <View track={track("hero")} visible={shown("hero")}>
         <HeroScene tier={tier} />
       </View>
-      <View track={globeSlot as React.RefObject<HTMLElement>} visible={visible.globe}>
+      {FEATURED.map((s, i) => (
+        <View key={s} track={track(`svc-${s}`)} visible={shown(`svc-${s}`)}>
+          <ServiceCardScene slug={s} large={i === 0} />
+        </View>
+      ))}
+      <View track={track("svc-more")} visible={shown("svc-more")}>
+        <SupportingScene />
+      </View>
+      <View track={track("globe")} visible={shown("globe")}>
         <GlobeScene tier={tier} />
+      </View>
+      <View track={track("finale")} visible={shown("finale")}>
+        <FinaleScene tier={tier} />
       </View>
     </Canvas>
   );
