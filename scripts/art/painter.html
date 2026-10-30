@@ -1,0 +1,282 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8" /><title>BS Travels generated art</title>
+<style>html,body{margin:0;background:#000}canvas{display:block}</style></head>
+<body>
+<canvas id="c"></canvas>
+<script>
+/*
+ * Procedural landscape painter for the placeholder destination artwork.
+ * Each scene is layered: sky, light source, haze, distant ridges, a
+ * destination motif, water, foreground and film grain. Run through
+ * scripts/art/render.mjs, which calls window.paint(scene) and saves a JPEG.
+ * No people are ever drawn.
+ */
+function rng(seed) {
+  let s = seed >>> 0;
+  return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+}
+function hex(c) { const n = parseInt(c.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+function mix(a, b, t) { const A = hex(a), B = hex(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(",")})`; }
+function rgba(c, a) { const [r, g, b] = hex(c); return `rgba(${r},${g},${b},${a})`; }
+
+function ridge(rand, w, base, amp, rough, steps = 9) {
+  // midpoint displacement ridge line
+  let pts = [base + (rand() - 0.5) * amp, base + (rand() - 0.5) * amp];
+  let a = amp;
+  for (let s = 0; s < steps; s++) {
+    const next = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      next.push(pts[i], (pts[i] + pts[i + 1]) / 2 + (rand() - 0.5) * a);
+    }
+    next.push(pts[pts.length - 1]);
+    pts = next; a *= rough;
+  }
+  return pts.map((y, i) => [(i / (pts.length - 1)) * w, y]);
+}
+function fillRidge(ctx, pts, h, fill) {
+  ctx.beginPath(); ctx.moveTo(0, h);
+  pts.forEach(([x, y]) => ctx.lineTo(x, y));
+  ctx.lineTo(pts[pts.length - 1][0], h); ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
+}
+
+const motifs = {
+  mountains(ctx, S, r) {
+    const { w, h, hz } = S;
+    for (let i = 0; i < 3; i++) {
+      const pts = ridge(r, w, hz - h * (0.22 - i * 0.06), h * (0.28 - i * 0.07), 0.55);
+      fillRidge(ctx, pts, h, mix(S.far, S.near, 0.25 + i * 0.3));
+      if (i === 0 && S.snow) snowCaps(ctx, pts, hz - h * 0.2, S.snow);
+    }
+  },
+  himalaya(ctx, S, r) {
+    const { w, h, hz } = S;
+    const pts = ridge(r, w, hz - h * 0.32, h * 0.38, 0.6, 10);
+    fillRidge(ctx, pts, h, mix(S.far, S.near, 0.15));
+    snowCaps(ctx, pts, hz - h * 0.28, S.snow || "#eef2f6");
+    fillRidge(ctx, ridge(r, w, hz - h * 0.08, h * 0.14, 0.5), h, mix(S.far, S.near, 0.6));
+  },
+  fuji(ctx, S, r) {
+    const { w, h, hz } = S;
+    fillRidge(ctx, ridge(r, w, hz - h * 0.04, h * 0.05, 0.5), h, mix(S.far, S.near, 0.3));
+    const cx = w * 0.62, top = hz - h * 0.36, half = w * 0.36;
+    ctx.beginPath(); ctx.moveTo(cx - half, hz + 4);
+    ctx.quadraticCurveTo(cx - half * 0.35, hz - h * 0.1, cx - w * 0.04, top);
+    ctx.lineTo(cx + w * 0.04, top);
+    ctx.quadraticCurveTo(cx + half * 0.35, hz - h * 0.1, cx + half, hz + 4); ctx.closePath();
+    ctx.fillStyle = mix(S.far, S.near, 0.2); ctx.fill();
+    ctx.save(); ctx.clip();
+    ctx.beginPath(); ctx.moveTo(cx - w * 0.2, top + h * 0.2);
+    for (let i = 0; i <= 12; i++) ctx.lineTo(cx - w * 0.2 + (i / 12) * w * 0.4, top + h * (0.11 + (i % 2) * 0.05 + r() * 0.03));
+    ctx.lineTo(cx + w * 0.2, top - 10); ctx.lineTo(cx - w * 0.2, top - 10); ctx.closePath();
+    ctx.fillStyle = S.snow || "#f1ede6"; ctx.fill(); ctx.restore();
+    pagoda(ctx, w * 0.18, hz + h * 0.06, h * 0.32, S.near);
+  },
+  skyline(ctx, S, r) {
+    const { w, h, hz } = S;
+    const style = S.skyline || "generic";
+    let x = -10;
+    ctx.fillStyle = mix(S.far, S.near, 0.35);
+    while (x < w) {
+      const bw = w * (0.015 + r() * 0.035), bh = h * (0.05 + r() * 0.16);
+      ctx.fillRect(x, hz - bh, bw, bh + 4); x += bw + r() * 4;
+    }
+    ctx.fillStyle = mix(S.far, S.near, 0.6);
+    x = -10;
+    while (x < w) {
+      const bw = w * (0.02 + r() * 0.04), bh = h * (0.08 + r() * 0.22);
+      ctx.fillRect(x, hz - bh, bw, bh + 4);
+      windows(ctx, r, x, hz - bh, bw, bh, S.glow);
+      x += bw + r() * 6;
+    }
+    if (style === "spire") {
+      // a single very tall stepped tower
+      const cx = w * 0.64, base = hz, top = hz - h * 0.62;
+      ctx.fillStyle = S.near;
+      ctx.beginPath(); ctx.moveTo(cx - w * 0.03, base); ctx.lineTo(cx - w * 0.022, base - h * 0.2);
+      ctx.lineTo(cx - w * 0.014, base - h * 0.38); ctx.lineTo(cx - w * 0.007, base - h * 0.52);
+      ctx.lineTo(cx, top); ctx.lineTo(cx + w * 0.007, base - h * 0.52); ctx.lineTo(cx + w * 0.014, base - h * 0.38);
+      ctx.lineTo(cx + w * 0.022, base - h * 0.2); ctx.lineTo(cx + w * 0.03, base); ctx.closePath(); ctx.fill();
+    }
+    if (style === "clock") {
+      const cx = w * 0.3, bw = w * 0.032, bh = h * 0.36;
+      ctx.fillStyle = S.near; ctx.fillRect(cx - bw / 2, hz - bh, bw, bh + 4);
+      ctx.beginPath(); ctx.moveTo(cx - bw / 2 - 4, hz - bh); ctx.lineTo(cx, hz - bh - h * 0.08); ctx.lineTo(cx + bw / 2 + 4, hz - bh); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx, hz - bh + bw * 0.8, bw * 0.32, 0, Math.PI * 2); ctx.fillStyle = rgba(S.glow, 0.85); ctx.fill();
+      ctx.fillStyle = S.near; ctx.fillRect(cx + w * 0.03, hz - h * 0.16, w * 0.22, h * 0.16 + 4);
+    }
+    if (style === "domes") {
+      ctx.fillStyle = S.near;
+      [[0.22, 0.08], [0.48, 0.11], [0.74, 0.07]].forEach(([fx, s]) => {
+        const cx = w * fx; ctx.fillRect(cx - w * s * 0.6, hz - h * 0.08, w * s * 1.2, h * 0.08 + 4);
+        ctx.beginPath(); ctx.ellipse(cx, hz - h * 0.08, w * s * 0.42, h * s * 1.4, 0, Math.PI, 0); ctx.fill();
+      });
+      [0.35, 0.62].forEach((fx) => { ctx.fillRect(w * fx, hz - h * 0.34, w * 0.008, h * 0.34); ctx.beginPath(); ctx.moveTo(w * fx - 4, hz - h * 0.34); ctx.lineTo(w * fx + w * 0.004, hz - h * 0.4); ctx.lineTo(w * fx + w * 0.008 + 4, hz - h * 0.34); ctx.fill(); });
+    }
+  },
+  temples(ctx, S, r) {
+    const { w, h, hz } = S;
+    fillRidge(ctx, ridge(r, w, hz - h * 0.08, h * 0.08, 0.5), h, mix(S.far, S.near, 0.3));
+    [[0.2, 0.3], [0.38, 0.44], [0.55, 0.36], [0.78, 0.26]].forEach(([fx, s]) => chedi(ctx, w * fx, hz + 6, h * s, S.near, S.glow));
+    palms(ctx, r, S, 4);
+  },
+  stupa(ctx, S, r) {
+    const { w, h, hz } = S;
+    motifs.mountains(ctx, { ...S, hz: hz + 10 }, r);
+    chedi(ctx, w * 0.32, hz + 10, h * 0.34, S.near, S.glow);
+    palms(ctx, r, S, 3);
+  },
+  karst(ctx, S, r) {
+    const { w, h, hz } = S;
+    for (let layer = 0; layer < 3; layer++) {
+      const col = mix(S.far, S.near, 0.2 + layer * 0.3);
+      for (let i = 0; i < 9; i++) {
+        const cx = r() * w, bw = w * (0.018 + r() * 0.035), bh = h * (0.16 + r() * 0.24) * (1 - layer * 0.18);
+        ctx.beginPath(); ctx.moveTo(cx - bw, hz + 2);
+        ctx.bezierCurveTo(cx - bw * 1.1, hz - bh * 0.7, cx - bw * 0.5, hz - bh, cx, hz - bh);
+        ctx.bezierCurveTo(cx + bw * 0.6, hz - bh, cx + bw * 1.05, hz - bh * 0.6, cx + bw, hz + 2);
+        ctx.fillStyle = col; ctx.fill();
+      }
+    }
+  },
+  islands(ctx, S, r) {
+    const { w, h, hz } = S;
+    for (let i = 0; i < 4; i++) {
+      const cx = w * (0.1 + r() * 0.8), bw = w * (0.08 + r() * 0.16), bh = h * (0.03 + r() * 0.07);
+      ctx.beginPath(); ctx.ellipse(cx, hz + 2, bw, bh, 0, Math.PI, 0); ctx.fillStyle = mix(S.far, S.near, 0.3 + r() * 0.3); ctx.fill();
+    }
+    if (S.volcano) {
+      const cx = w * 0.7; ctx.beginPath(); ctx.moveTo(cx - w * 0.22, hz + 2); ctx.lineTo(cx - w * 0.03, hz - h * 0.25); ctx.lineTo(cx + w * 0.03, hz - h * 0.25); ctx.lineTo(cx + w * 0.22, hz + 2); ctx.fillStyle = mix(S.far, S.near, 0.25); ctx.fill();
+    }
+    palms(ctx, r, S, 5);
+  },
+  harbour(ctx, S, r) {
+    const { w, h, hz } = S;
+    motifs.skyline(ctx, { ...S, skyline: "generic" }, r);
+    ctx.fillStyle = mix(S.near, "#f4eee2", 0.75);
+    const bx = w * 0.3, by = hz + 2;
+    [[0, 0.17, 0.09], [0.06, 0.2, 0.1], [0.13, 0.15, 0.08], [0.19, 0.11, 0.06]].forEach(([o, hh, ww]) => {
+      ctx.beginPath(); ctx.moveTo(bx + w * o, by); ctx.quadraticCurveTo(bx + w * o + w * ww * 0.2, by - h * hh, bx + w * o + w * ww, by - h * hh * 0.95); ctx.quadraticCurveTo(bx + w * o + w * ww * 0.8, by - h * hh * 0.3, bx + w * o + w * ww * 1.1, by); ctx.closePath(); ctx.fill();
+    });
+    ctx.fillStyle = S.near; ctx.fillRect(bx - w * 0.02, by - 6, w * 0.3, 10);
+  },
+  wall(ctx, S, r) {
+    const { w, h, hz } = S;
+    const back = ridge(r, w, hz - h * 0.16, h * 0.18, 0.55);
+    fillRidge(ctx, back, h, mix(S.far, S.near, 0.25));
+    const mid = ridge(r, w, hz - h * 0.04, h * 0.14, 0.5);
+    fillRidge(ctx, mid, h, mix(S.far, S.near, 0.55));
+    ctx.strokeStyle = mix(S.glow, S.near, 0.45); ctx.lineWidth = h * 0.012; ctx.beginPath();
+    mid.forEach(([x, y], i) => (i ? ctx.lineTo(x, y - 2) : ctx.moveTo(x, y - 2))); ctx.stroke();
+    for (let i = 1; i < 6; i++) { const p = mid[Math.floor((i / 6) * (mid.length - 1))]; ctx.fillStyle = mix(S.glow, S.near, 0.4); ctx.fillRect(p[0] - w * 0.01, p[1] - h * 0.04, w * 0.02, h * 0.04); }
+  },
+  clouds(ctx, S, r) {
+    const { w, h, hz } = S;
+    for (let layer = 0; layer < 5; layer++) {
+      const y = hz + layer * h * 0.07 + (layer ? 0 : -h * 0.01);
+      for (let i = 0; i < 90; i++) {
+        const cx = r() * w * 1.2 - w * 0.1, rad = h * (0.02 + r() * 0.045) * (1 + layer * 0.45);
+        const g = ctx.createRadialGradient(cx, y, 0, cx, y, rad);
+        const c = mix(S.cloudTop || "#e9d7c3", S.cloudBottom || "#3a4766", layer / 5);
+        g.addColorStop(0, c); g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.globalAlpha = 0.7; ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(cx, y + (r() - 0.5) * h * 0.04, rad * 2.2, rad, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+      }
+    }
+  },
+};
+
+function snowCaps(ctx, pts, line, color) {
+  // clip to the mountain body, then paint everything above a jagged snow line
+  const right = pts[pts.length - 1][0];
+  const peak = Math.min(...pts.map((p) => p[1]));
+  line = Math.min(line, peak + (Math.max(...pts.map((p) => p[1])) - peak) * 0.3);
+  ctx.save(); ctx.beginPath(); ctx.moveTo(0, 5000);
+  pts.forEach(([x, y]) => ctx.lineTo(x, y)); ctx.lineTo(right, 5000); ctx.closePath(); ctx.clip();
+  ctx.beginPath(); ctx.moveTo(0, -10);
+  for (let i = 0; i <= 60; i++) ctx.lineTo((i / 60) * right, line + Math.sin(i * 1.7) * 6 + ((i * 53) % 11));
+  ctx.lineTo(right, -10); ctx.closePath();
+  ctx.fillStyle = color; ctx.globalAlpha = 0.92; ctx.fill(); ctx.restore();
+}
+function windows(ctx, r, x, y, bw, bh, glow) {
+  ctx.save(); ctx.fillStyle = rgba(glow, 0.55);
+  for (let wy = y + 6; wy < y + bh - 4; wy += 9) for (let wx = x + 3; wx < x + bw - 3; wx += 6) if (r() < 0.18) ctx.fillRect(wx, wy, 2.4, 3.2);
+  ctx.restore(); ctx.fillStyle = ctx.fillStyle;
+}
+function chedi(ctx, cx, base, height, color, glow) {
+  ctx.fillStyle = color;
+  const bw = height * 0.42;
+  ctx.fillRect(cx - bw * 0.62, base - height * 0.1, bw * 1.24, height * 0.1);
+  ctx.beginPath(); ctx.moveTo(cx - bw * 0.5, base - height * 0.1);
+  ctx.quadraticCurveTo(cx - bw * 0.5, base - height * 0.46, cx, base - height * 0.5);
+  ctx.quadraticCurveTo(cx + bw * 0.5, base - height * 0.46, cx + bw * 0.5, base - height * 0.1); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(cx - bw * 0.1, base - height * 0.48); ctx.lineTo(cx, base - height); ctx.lineTo(cx + bw * 0.1, base - height * 0.48); ctx.fill();
+  ctx.fillStyle = rgba(glow, 0.35); ctx.fillRect(cx - bw * 0.62, base - height * 0.1, bw * 1.24, 2);
+}
+function pagoda(ctx, cx, base, height, color) {
+  ctx.fillStyle = color; const tiers = 5, tw = height * 0.42;
+  for (let i = 0; i < tiers; i++) {
+    const y = base - (i / tiers) * height * 0.85, ww = tw * (1 - i * 0.13);
+    ctx.fillRect(cx - ww * 0.3, y - height * 0.15, ww * 0.6, height * 0.15);
+    ctx.beginPath(); ctx.moveTo(cx - ww * 0.62, y - height * 0.13); ctx.quadraticCurveTo(cx, y - height * 0.2, cx + ww * 0.62, y - height * 0.13); ctx.lineTo(cx + ww * 0.4, y - height * 0.17); ctx.lineTo(cx - ww * 0.4, y - height * 0.17); ctx.fill();
+  }
+  ctx.fillRect(cx - 2, base - height, 4, height * 0.2);
+}
+function palms(ctx, r, S, n) {
+  const { w, h } = S;
+  for (let i = 0; i < n; i++) {
+    const x = r() < 0.5 ? r() * w * 0.2 : w - r() * w * 0.2, base = h + 4, top = h * (0.55 + r() * 0.2);
+    ctx.strokeStyle = S.fore; ctx.lineWidth = w * 0.006; ctx.beginPath(); ctx.moveTo(x, base);
+    const lean = (r() - 0.5) * w * 0.08; ctx.quadraticCurveTo(x + lean * 0.3, (base + top) / 2, x + lean, top); ctx.stroke();
+    ctx.fillStyle = S.fore;
+    for (let f = 0; f < 7; f++) {
+      const a = (f / 7) * Math.PI * 2, len = h * 0.11;
+      ctx.beginPath(); ctx.moveTo(x + lean, top);
+      ctx.quadraticCurveTo(x + lean + Math.cos(a) * len * 0.6, top + Math.sin(a) * len * 0.3 - len * 0.25, x + lean + Math.cos(a) * len, top + Math.abs(Math.sin(a)) * len * 0.5 + len * 0.1);
+      ctx.quadraticCurveTo(x + lean + Math.cos(a) * len * 0.5, top + len * 0.05, x + lean, top + 2); ctx.fill();
+    }
+  }
+}
+
+window.paint = function paint(scene) {
+  const c = document.getElementById("c"), ctx = c.getContext("2d");
+  const w = (c.width = scene.width || 1600), h = (c.height = scene.height || 1000);
+  const r = rng(scene.seed || 7);
+  const S = { ...scene, w, h, hz: h * (scene.horizon ?? 0.66) };
+  // sky
+  const sky = ctx.createLinearGradient(0, 0, 0, S.hz);
+  sky.addColorStop(0, scene.sky[0]); sky.addColorStop(0.55, scene.sky[1]); sky.addColorStop(1, scene.sky[2]);
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
+  if (scene.stars) { for (let i = 0; i < 260; i++) { ctx.fillStyle = `rgba(244,238,226,${r() * 0.6})`; ctx.fillRect(r() * w, r() * S.hz * 0.6, 1.2, 1.2); } }
+  // light source
+  const sx = w * (scene.sun?.x ?? 0.7), sy = h * (scene.sun?.y ?? 0.55), sr = h * (scene.sun?.r ?? 0.05);
+  const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, h * 0.7);
+  glow.addColorStop(0, rgba(scene.glow, 0.55)); glow.addColorStop(0.25, rgba(scene.glow, 0.18)); glow.addColorStop(1, rgba(scene.glow, 0));
+  ctx.fillStyle = glow; ctx.fillRect(0, 0, w, h);
+  ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fillStyle = mix(scene.glow, "#fff7e8", 0.6); ctx.fill();
+  // haze bands
+  for (let i = 0; i < 5; i++) { ctx.fillStyle = rgba(scene.sky[2], 0.08); ctx.fillRect(0, S.hz - h * (0.05 + i * 0.05), w, h * 0.02 + r() * h * 0.02); }
+  // distant ridge
+  if (scene.backRidge !== false) fillRidge(ctx, ridge(r, w, S.hz - h * 0.06, h * 0.06, 0.5), h, mix(scene.sky[2], scene.far, 0.5));
+  // motif
+  (scene.motifs || []).forEach((m) => motifs[m](ctx, S, r));
+  // water
+  if (scene.water) {
+    const wg = ctx.createLinearGradient(0, S.hz, 0, h);
+    wg.addColorStop(0, mix(scene.sky[2], scene.near, 0.55)); wg.addColorStop(1, scene.near);
+    ctx.fillStyle = wg; ctx.fillRect(0, S.hz + 2, w, h - S.hz);
+    for (let i = 0; i < 90; i++) { const y = S.hz + 4 + Math.pow(r(), 1.6) * (h - S.hz); const len = (y - S.hz) * 0.6 + 10; ctx.fillStyle = rgba(scene.glow, 0.1 + r() * 0.25); ctx.fillRect(sx - len / 2 + (r() - 0.5) * len, y, len * r(), 1.5); }
+  } else {
+    fillRidge(ctx, ridge(r, w, h * 0.9, h * 0.08, 0.5, 7), h, scene.fore);
+  }
+  // vignette and grain
+  const v = ctx.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, h * 1.05);
+  v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, "rgba(4,8,18,0.55)");
+  ctx.fillStyle = v; ctx.fillRect(0, 0, w, h);
+  const img = ctx.getImageData(0, 0, w, h), d = img.data;
+  for (let i = 0; i < d.length; i += 4) { const n = (r() - 0.5) * 14; d[i] += n; d[i + 1] += n; d[i + 2] += n; }
+  ctx.putImageData(img, 0, 0);
+  return true;
+};
+</script>
+</body>
+</html>
