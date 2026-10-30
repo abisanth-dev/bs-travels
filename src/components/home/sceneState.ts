@@ -20,6 +20,8 @@ export type SceneState = {
   journal: number | null;
   faq: string | null;
   appointment: { date: string; progress: number };
+  /** Position along the destination journey: 0 is Jaffna, 1 the first destination, and so on. */
+  journey: number;
 };
 
 let state: SceneState = {
@@ -33,6 +35,7 @@ let state: SceneState = {
   journal: null,
   faq: null,
   appointment: { date: "", progress: 0 },
+  journey: 0,
 };
 const listeners = new Set<() => void>();
 

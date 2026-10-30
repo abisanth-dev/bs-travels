@@ -5,7 +5,6 @@ import { View } from "@react-three/drei";
 import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useStage } from "@/components/home/HomeExperience";
 import { HeroScene } from "./HeroScene";
-import { GlobeScene } from "./GlobeScene";
 import { FinaleScene } from "./FinaleScene";
 import { ServicesScene } from "./scenes/ServicesScene";
 import { InspirationScene } from "./scenes/InspirationScene";
@@ -16,6 +15,7 @@ import { FolderScene } from "./scenes/FolderScene";
 import { JournalScene } from "./scenes/JournalScene";
 import { FaqScene } from "./scenes/FaqScene";
 import { DeskScene } from "./scenes/DeskScene";
+import { JourneyScene } from "./scenes/JourneyScene";
 import type { SceneTier } from "./useSceneTier";
 
 /** Clears the shared canvas each frame before the views draw into it. */
@@ -31,7 +31,7 @@ function Clearer() {
 const SCENES: { name: string; render: (tier: SceneTier) => ReactNode }[] = [
   { name: "hero", render: (tier) => <HeroScene tier={tier} /> },
   { name: "services", render: () => <ServicesScene /> },
-  { name: "globe", render: (tier) => <GlobeScene tier={tier} /> },
+  { name: "journey", render: () => <JourneyScene /> },
   { name: "inspire", render: () => <InspirationScene /> },
   { name: "about", render: () => <IslandScene /> },
   { name: "steps", render: () => <StepsScene /> },
