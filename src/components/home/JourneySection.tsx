@@ -7,6 +7,7 @@ import { Icon } from "@/components/ui/Icon";
 import { buttonClass } from "@/components/ui/Button";
 import { checklists } from "@/content/checklists";
 import { destinations, regions, type Destination } from "@/content/destinations";
+import { JOURNEY_VIDEOS } from "@/content/journeyVideos";
 import { useStage } from "./HomeExperience";
 import { JOURNEY } from "./homeData";
 import { sceneState, useSceneState } from "./sceneState";
@@ -17,7 +18,48 @@ const STEP_VH = 85;
 const pad = (n: number) => String(n).padStart(2, "0");
 const regionLabel = (d: Destination) => regions.find((r) => r.id === d.region)?.label ?? "";
 const destOf = (slug: string) => destinations.find((d) => d.slug === slug);
-const NOTE = "Landmarks are illustrations of each destination, not BS Travels offices.";
+const HAS_VIDEO = Object.keys(JOURNEY_VIDEOS).length > 0;
+const NOTE = HAS_VIDEO
+  ? "Videos are AI-generated and landmarks are illustrations of each destination, not BS Travels offices."
+  : "Landmarks are illustrations of each destination, not BS Travels offices.";
+
+/**
+ * Full-bleed clips over the 3D stage for stops that have one. Only the
+ * current stop and its neighbours are loaded; the current one plays.
+ */
+function VideoLayer({ index }: { index: number }) {
+  const refs = useRef<Record<string, HTMLVideoElement | null>>({});
+  const near = JOURNEY.filter((_, i) => Math.abs(i - index) <= 1 && JOURNEY_VIDEOS[JOURNEY[i].slug]);
+  const current = JOURNEY[index].slug;
+  useEffect(() => {
+    Object.entries(refs.current).forEach(([slug, v]) => {
+      if (!v) return;
+      if (slug === current) v.play().catch(() => {});
+      else v.pause();
+    });
+  }, [current, near.length]);
+  return (
+    <>
+      {near.map(({ slug }) => {
+        const clip = JOURNEY_VIDEOS[slug];
+        return (
+          <video
+            key={slug}
+            ref={(el) => void (refs.current[slug] = el)}
+            src={clip.src}
+            poster={clip.poster}
+            muted
+            loop
+            playsInline
+            preload={slug === current ? "auto" : "metadata"}
+            aria-hidden
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${slug === current ? "opacity-100" : "opacity-0"}`}
+          />
+        );
+      })}
+    </>
+  );
+}
 
 function DestinationLinks({ dest, compact = false }: { dest: Destination; compact?: boolean }) {
   const checklist = dest.checklist ? checklists.find((c) => c.slug === dest.checklist) : undefined;
@@ -52,6 +94,7 @@ function StopCard({ index }: { index: number }) {
             Stop {pad(index)} of {pad(LAST)} · {regionLabel(dest)}
           </p>
           <h3 className="font-display mt-2 text-[clamp(2rem,4.4vw,3.4rem)] leading-[1.02]">{dest.name}</h3>
+          {JOURNEY_VIDEOS[slug] ? <p className="sr-only">Shown with an AI-generated video of {dest.name}.</p> : null}
           <p className="mt-2 text-xs text-ivory-faint">
             {dest.kind === "city" ? `City in ${dest.country}` : dest.country} · about {km.toLocaleString("en-GB")} km from Jaffna
           </p>
@@ -146,7 +189,11 @@ export function JourneySection() {
             {JOURNEY.slice(1).map(({ slug, km }) => {
               const d = destOf(slug)!;
               return (
-                <li key={slug} className="rounded-[1.5rem] border border-line bg-navy-2/70 p-6">
+                <li key={slug} className="overflow-hidden rounded-[1.5rem] border border-line bg-navy-2/70 p-6">
+                  {JOURNEY_VIDEOS[slug] ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={JOURNEY_VIDEOS[slug].poster} alt="" loading="lazy" className="-mx-6 -mt-6 mb-5 aspect-video w-[calc(100%+3rem)] max-w-none object-cover" />
+                  ) : null}
                   <p className="text-[0.7rem] uppercase tracking-[0.2em] text-ivory-faint">
                     {regionLabel(d)} · about {km.toLocaleString("en-GB")} km from Jaffna
                   </p>
@@ -162,6 +209,7 @@ export function JourneySection() {
         <div ref={track} className="relative mt-10" style={{ height: `calc(${LAST * STEP_VH}svh + 100svh)` }}>
           <div className="sticky top-0 h-svh overflow-hidden">
             <div ref={(el) => void (passSlot.current = el)} className="absolute inset-0" />
+            {HAS_VIDEO ? <VideoLayer index={index} /> : null}
             <div
               className="pointer-events-none absolute inset-0 hidden lg:block"
               aria-hidden
