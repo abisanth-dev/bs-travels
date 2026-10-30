@@ -5,7 +5,7 @@ import { DestinationsSection } from "@/components/home/DestinationsSection";
 import { FaqSection } from "@/components/home/FaqSection";
 import { FinalCta } from "@/components/home/FinalCta";
 import { FlightPath } from "@/components/home/FlightPath";
-import { GlobeSection } from "@/components/home/GlobeSection";
+import { JourneySection } from "@/components/home/JourneySection";
 import { HeroSection } from "@/components/home/HeroSection";
 import { HomeExperience } from "@/components/home/HomeExperience";
 import { HowItWorksSection } from "@/components/home/HowItWorksSection";
@@ -32,7 +32,7 @@ export default function HomePage() {
       <div className="relative">
         <HeroSection />
         <ServicesSection />
-        <GlobeSection />
+        <JourneySection />
         <DestinationsSection />
         <AboutSection />
         <HowItWorksSection />
