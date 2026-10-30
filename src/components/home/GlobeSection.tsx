@@ -12,7 +12,8 @@ import { distanceKm } from "@/lib/geo";
 import { useStage } from "./HomeExperience";
 
 export function GlobeSection() {
-  const { globeSlot, selected, setSelected, globeInput, globeLabels, ready, tier } = useStage();
+  const { globeSlot, slot, selected, setSelected, globeInput, globeLabels, ready, tier } = useStage();
+  const passSlot = slot("globe");
   const live = ready && (tier === "low" || tier === "high");
   const last = useRef<{ x: number; y: number } | null>(null);
   const dest = destinations.find((d) => d.slug === selected) ?? null;
@@ -48,7 +49,7 @@ export function GlobeSection() {
   };
 
   return (
-    <section id="destinations-globe" aria-labelledby="globe-title" className="relative overflow-hidden py-28 sm:py-36">
+    <section id="destinations-globe" data-flight="globe" aria-labelledby="globe-title" className="relative overflow-hidden py-28 sm:py-36">
       <div
         className="pointer-events-none absolute inset-0 -z-10"
         aria-hidden
@@ -106,7 +107,10 @@ export function GlobeSection() {
 
         <div className="order-1 lg:order-2">
           <div
-            ref={globeSlot}
+            ref={(el) => {
+              globeSlot.current = el;
+              passSlot.current = el;
+            }}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={endDrag}

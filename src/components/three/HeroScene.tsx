@@ -348,6 +348,55 @@ function DistantJet() {
   );
 }
 
+/**
+ * Near cloud banks between the camera and the aircraft. They rise and thicken
+ * as the hero scrolls away, so the departure dissolves into the next section.
+ */
+function ForegroundClouds({ progress }: { progress: React.MutableRefObject<number> }) {
+  const group = useRef<THREE.Group>(null);
+  const mats = useRef<THREE.MeshBasicMaterial[]>([]);
+  const tex = useMemo(makeCloudTexture, []);
+  const puffs = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, i) => ({
+        x: -9 + i * 3.2 + (i % 2) * 0.8,
+        z: 5.5 + (i % 3) * 1.4,
+        s: 7 + (i % 3) * 2.5,
+        lag: (i % 4) * 0.08,
+      })),
+    [],
+  );
+  useFrame(({ clock }) => {
+    const p = progress.current;
+    const g = group.current;
+    if (!g) return;
+    g.children.forEach((c, i) => {
+      const d = puffs[i];
+      const k = THREE.MathUtils.smoothstep(p, 0.15 + d.lag, 0.85 + d.lag);
+      c.position.set(d.x + Math.sin(clock.elapsedTime * 0.1 + i) * 0.4, -7.5 + k * 8.5, d.z);
+      if (mats.current[i]) mats.current[i].opacity = k * 0.95;
+    });
+  });
+  return (
+    <group ref={group}>
+      {puffs.map((d, i) => (
+        <mesh key={i} scale={[d.s * 1.9, d.s * 0.8, 1]}>
+          <planeGeometry args={[1, 1]} />
+          <meshBasicMaterial
+            ref={(m) => void (m && (mats.current[i] = m))}
+            map={tex}
+            transparent
+            opacity={0}
+            depthWrite={false}
+            color="#3a4566"
+            fog={false}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 /** Flight path the aircraft follows as the hero scrolls away. */
 const PATH = new THREE.CatmullRomCurve3([
   new THREE.Vector3(3.7, 0.05, 0),
@@ -387,7 +436,8 @@ export function HeroScene({ tier }: { tier: SceneTier }) {
       const tx = pointer.current.x * 0.45;
       const ty = 1.7 - pointer.current.y * 0.25;
       c.position.x = THREE.MathUtils.damp(c.position.x, tx, 2.2, delta);
-      c.position.y = THREE.MathUtils.damp(c.position.y, ty, 2.2, delta);
+      c.position.y = THREE.MathUtils.damp(c.position.y, ty - p * 1.2, 2.2, delta);
+      c.position.z = THREE.MathUtils.damp(c.position.z, (narrow ? 15 : 11.5) - p * 2.5, 2.2, delta);
       c.lookAt(narrow ? 0 : 1.6, narrow ? 0.4 : -0.1, 0);
     }
   });
@@ -416,6 +466,7 @@ export function HeroScene({ tier }: { tier: SceneTier }) {
         <Aircraft detail={high ? "high" : "low"} />
       </group>
       <Trail target={plane} progress={heroProgress} />
+      <ForegroundClouds progress={heroProgress} />
     </>
   );
 }

@@ -41,9 +41,14 @@ All content is typed and lives in `src/content/` (business settings, services, d
 
 ## 3D and motion
 
-One lazily loaded WebGL canvas (`src/components/three/Stage.tsx`) renders the hero aircraft and the globe into their DOM slots with Drei `View`. It stops rendering when neither is on screen or the tab is hidden. Visitors with reduced motion, data saver or no WebGL get static artwork; phones and modest hardware get a lighter scene. Force a tier with `?3d=off`, `?3d=low` or `?3d=high`.
+The homepage is twelve sections, each with its own scene, drawn by one lazily loaded WebGL canvas (`src/components/three/Stage.tsx`) into each section's DOM slot with Drei `View`. A scene mounts only when its section is within about a screen of the viewport and unmounts (freeing GPU memory) once far away; the canvas stops drawing when nothing is on screen or the tab is hidden.
 
-GSAP ScrollTrigger is the only scroll-driven animation system (hero flight progress, globe arc reveal, flight path, text reveals).
+- Scenes: `src/components/three/scenes/` plus `HeroScene`, `GlobeScene` and `FinaleScene`.
+- Shared timing (entrances, exits, reframing, swaps): `src/components/three/choreo.ts`.
+- HTML controls drive scenes through `src/components/home/sceneState.ts`; all text, forms and buttons stay in HTML.
+- GSAP ScrollTrigger is the only scroll system; it writes each section's progress for the scenes.
+
+Visitors with reduced motion, data saver or no WebGL see stills captured from each scene (`public/images/scenes/poster-*.webp`, regenerate with `scripts/capture-scene-posters.cjs`); phones and modest hardware get lighter scenes. Force a tier with `?3d=off`, `?3d=low` or `?3d=high`. Asset sources are listed in `ASSETS.md`.
 
 ## Old URLs
 

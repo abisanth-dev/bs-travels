@@ -24,7 +24,20 @@ function write(key: string, value: unknown) {
   }
 }
 
-export function ChecklistView({ checklist }: { checklist: Checklist }) {
+export function ChecklistView({
+  checklist,
+  onProgress,
+  printHref,
+  compact = false,
+}: {
+  checklist: Checklist;
+  /** Called whenever the number of ticked items changes. */
+  onProgress?: (done: number, total: number) => void;
+  /** When set, Print opens this page (which prints itself) instead of printing the current page. */
+  printHref?: string;
+  /** Tighter layout for use inside another page. */
+  compact?: boolean;
+}) {
   const uid = useId();
   const storeKey = `bst-checklist-${checklist.slug}`;
   const [variantId, setVariantId] = useState(checklist.variants[0]?.id ?? "");
@@ -52,6 +65,17 @@ export function ChecklistView({ checklist }: { checklist: Checklist }) {
   );
   const done = keys.filter((k) => checked[k]).length;
   const pct = keys.length ? Math.round((done / keys.length) * 100) : 0;
+
+  useEffect(() => {
+    onProgress?.(done, keys.length);
+  }, [done, keys.length, onProgress]);
+
+  // /checklists/x?print=1 opens the print dialog once the page has settled
+  useEffect(() => {
+    if (printHref || new URLSearchParams(window.location.search).get("print") !== "1") return;
+    const t = setTimeout(() => window.print(), 700);
+    return () => clearTimeout(t);
+  }, [printHref]);
 
   if (!variant) return null;
 
@@ -81,16 +105,25 @@ export function ChecklistView({ checklist }: { checklist: Checklist }) {
         </div>
       ) : null}
 
-      <div className="no-print sticky top-[calc(var(--header-h)+0.5rem)] z-20 rounded-2xl border border-line-strong bg-navy/95 p-5 backdrop-blur">
+      <div
+        className={`no-print sticky z-20 rounded-2xl border border-line-strong bg-navy/95 p-5 backdrop-blur ${compact ? "top-0" : "top-[calc(var(--header-h)+0.5rem)]"}`}
+      >
         <div className="flex flex-wrap items-center justify-between gap-4">
           <p id={`${uid}-progress-label`} className="text-sm">
             <span className="font-display text-2xl text-ivory">{done}</span>
             <span className="text-ivory-dim"> of {keys.length} ready</span>
           </p>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => window.print()} className={buttonClass("secondary", "min-h-11 px-4")}>
-              <Icon name="print" size={18} /> Print
-            </button>
+            {printHref ? (
+              <a href={`${printHref}?print=1`} target="_blank" rel="noopener" className={buttonClass("secondary", "min-h-11 px-4")}>
+                <Icon name="print" size={18} /> Print
+                <span className="sr-only">(opens the printable checklist in a new tab)</span>
+              </a>
+            ) : (
+              <button type="button" onClick={() => window.print()} className={buttonClass("secondary", "min-h-11 px-4")}>
+                <Icon name="print" size={18} /> Print
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setChecked((c) => Object.fromEntries(Object.entries(c).filter(([k]) => !k.startsWith(`${variant.id}.`))))}
@@ -122,7 +155,7 @@ export function ChecklistView({ checklist }: { checklist: Checklist }) {
       <div className="mt-8 space-y-12">
         {variant.groups.map((g) => (
           <fieldset key={g.id}>
-            <legend className="font-display text-3xl">{g.title}</legend>
+            <legend className={`font-display ${compact ? "text-2xl" : "text-3xl"}`}>{g.title}</legend>
             {g.description ? <p className="mt-2 text-ivory-dim">{g.description}</p> : null}
             <ul className="mt-6 divide-y divide-line border-y border-line">
               {g.items.map((item, i) => {
@@ -138,7 +171,7 @@ export function ChecklistView({ checklist }: { checklist: Checklist }) {
                         onChange={(e) => setChecked((c) => ({ ...c, [key]: e.target.checked }))}
                         className="mt-1 h-5 w-5 shrink-0 accent-[var(--color-gold)]"
                       />
-                      <span className={`text-lg leading-snug ${checked[key] ? "text-ivory-faint line-through decoration-gold/60" : ""}`}>{item}</span>
+                      <span className={`${compact ? "text-base" : "text-lg"} leading-snug ${checked[key] ? "text-ivory-faint line-through decoration-gold/60" : ""}`}>{item}</span>
                     </label>
                   </li>
                 );

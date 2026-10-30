@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Environment, Lightformer, PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
@@ -61,6 +61,36 @@ function RunwayLights({ count }: { count: number }) {
       <meshBasicMaterial toneMapped={false} />
     </instancedMesh>
   );
+}
+
+/** A faint outline of Sri Lanka drawn in the evening sky above the runway. */
+function SkyIsland() {
+  const [line, setLine] = useState<THREE.LineLoop | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetch("/geo/sri-lanka.json")
+      .then((r) => r.json() as Promise<{ rings: [number, number][][] }>)
+      .then(({ rings }) => {
+        if (!alive) return;
+        const main = rings.reduce((a, b) => (b.length > a.length ? b : a));
+        const pts = main.map(([lng, lat]) => new THREE.Vector3((lng - 80.7) * 0.99, lat - 7.9, 0));
+        const geo = new THREE.BufferGeometry().setFromPoints(pts);
+        const mat = new THREE.LineBasicMaterial({ color: "#f3c48d", transparent: true, opacity: 0.32, fog: false });
+        setLine(new THREE.LineLoop(geo, mat));
+      })
+      .catch(() => null);
+    return () => {
+      alive = false;
+    };
+  }, []);
+  useEffect(
+    () => () => {
+      line?.geometry.dispose();
+      (line?.material as THREE.Material | undefined)?.dispose();
+    },
+    [line],
+  );
+  return line ? <primitive object={line} position={[22, 26, -110]} scale={6} /> : null;
 }
 
 /**
@@ -142,6 +172,7 @@ export function FinaleScene({ tier }: { tier: SceneTier }) {
         <meshStandardMaterial map={runway} roughness={0.8} />
       </mesh>
       <RunwayLights count={high ? 40 : 24} />
+      <SkyIsland />
       <hemisphereLight args={["#f2b88a", "#1a1020", 0.45]} />
       <directionalLight position={[0, 4, -30]} intensity={2.4} color="#ffb98a" />
       <directionalLight position={[0, 8, 10]} intensity={0.8} color="#c9d2ee" />

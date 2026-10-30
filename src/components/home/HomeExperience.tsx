@@ -49,6 +49,10 @@ type StageContextValue = {
   slot: (name: string) => RefObject<HTMLElement | null>;
   /** 0 to 1 as the final section scrolls into place. Written by GSAP. */
   finaleProgress: MutableRefObject<number>;
+  /** Scroll progress through a named slot: 0 entering at the bottom, 1 gone off the top. */
+  progress: (name: string) => MutableRefObject<number>;
+  /** DOM elements that scenes position over 3D points each frame. */
+  anchors: MutableRefObject<Map<string, HTMLElement>>;
 };
 
 const StageContext = createContext<StageContextValue | null>(null);
@@ -75,6 +79,16 @@ export function HomeExperience({ children }: { children: ReactNode }) {
   const globeLabels = useRef(new Map<string, HTMLElement>());
   const finaleProgress = useRef(0);
   const slots = useRef(new Map<string, { current: HTMLElement | null }>());
+  const progresses = useRef(new Map<string, { current: number }>());
+  const anchors = useRef(new Map<string, HTMLElement>());
+  const progress = useCallback((name: string) => {
+    let r = progresses.current.get(name);
+    if (!r) {
+      r = { current: 0 };
+      progresses.current.set(name, r);
+    }
+    return r;
+  }, []);
   const slot = useCallback((name: string) => {
     let r = slots.current.get(name);
     if (!r) {
@@ -146,8 +160,33 @@ export function HomeExperience({ children }: { children: ReactNode }) {
         }),
       );
     }
-    return () => triggers.forEach((t) => t.kill());
-  }, [slot]);
+    // Every named slot gets a full pass-through progress value.
+    slots.current.forEach((ref, name) => {
+      if (!ref.current) return;
+      const target = progress(name);
+      triggers.push(
+        ScrollTrigger.create({
+          trigger: ref.current,
+          start: "top bottom",
+          end: "bottom top",
+          onUpdate: (self) => (target.current = self.progress),
+          onRefresh: (self) => (target.current = self.progress),
+        }),
+      );
+    });
+    // Sections change height (tabs, accordions, checklists); keep the triggers measured.
+    let timer = 0;
+    const ro = new ResizeObserver(() => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => ScrollTrigger.refresh(), 200);
+    });
+    ro.observe(document.body);
+    return () => {
+      ro.disconnect();
+      window.clearTimeout(timer);
+      triggers.forEach((t) => t.kill());
+    };
+  }, [slot, progress]);
 
   // Text reveals: short, once, and skipped for reduced motion.
   useEffect(() => {
@@ -188,8 +227,10 @@ export function HomeExperience({ children }: { children: ReactNode }) {
       live: ready && (tier === "low" || tier === "high"),
       slot,
       finaleProgress,
+      progress,
+      anchors,
     }),
-    [tier, ready, selected, slot],
+    [tier, ready, selected, slot, progress],
   );
 
   return (

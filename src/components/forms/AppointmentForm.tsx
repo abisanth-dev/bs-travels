@@ -14,7 +14,16 @@ function localISO(d: Date) {
   return new Date(d.getTime() - off * 60_000).toISOString().slice(0, 10);
 }
 
-export function AppointmentForm({ configured, initialService }: { configured: boolean; initialService?: string }) {
+export function AppointmentForm({
+  configured,
+  initialService,
+  onProgress,
+}: {
+  configured: boolean;
+  initialService?: string;
+  /** Reports the chosen date and how much of the form is complete (0 to 1), for visual feedback only. */
+  onProgress?: (p: { date: string; progress: number }) => void;
+}) {
   const uid = useId();
   const startedAt = useRef(0);
   const [minDate, setMinDate] = useState("");
@@ -51,6 +60,13 @@ export function AppointmentForm({ configured, initialService }: { configured: bo
       return next;
     });
   };
+
+  const required = [data.service, data.preferredDate, data.name, data.phone, data.email, data.consent];
+  const filled = required.filter(Boolean).length / required.length;
+  const finished = send.status === "sent" || send.status === "handoff";
+  useEffect(() => {
+    onProgress?.({ date: data.preferredDate, progress: finished ? 1 : filled * 0.9 });
+  }, [data.preferredDate, filled, finished, onProgress]);
 
   const payload = { ...data, startedAt: startedAt.current };
   const links = handoffLinks(`Appointment request: ${topicLabel(data.service)}`, appointmentText(data));

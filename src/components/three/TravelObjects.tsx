@@ -14,7 +14,7 @@ import * as THREE from "three";
 const GOLD = "#d9a95b";
 const NAVY = "#13254a";
 
-function canvasTexture(w: number, h: number, paint: (g: CanvasRenderingContext2D) => void) {
+export function canvasTexture(w: number, h: number, paint: (g: CanvasRenderingContext2D) => void) {
   const c = document.createElement("canvas");
   c.width = w;
   c.height = h;

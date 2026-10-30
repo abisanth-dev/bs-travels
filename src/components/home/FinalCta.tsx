@@ -1,6 +1,7 @@
 import { Container } from "@/components/layout/Container";
 import { AnchorButton, LinkButton } from "@/components/ui/Button";
-import { whatsappHref } from "@/content/site";
+import { Icon } from "@/components/ui/Icon";
+import { mailHref, site, telHref, whatsappHref } from "@/content/site";
 import { StageSlot, StaticOnly } from "./StageSlot";
 
 /** The flight path comes in to land on this warm horizon. */
@@ -26,13 +27,28 @@ export function FinalCta() {
           Talk to our team in person, by phone or on WhatsApp. We will help you work out the next step.
         </p>
         <div className="mt-10 flex flex-wrap justify-center gap-3" data-reveal>
-          <LinkButton href="/appointment" icon="calendar">
-            Book a Consultation
+          <LinkButton href="#appointment" icon="calendar">
+            Request an Appointment
           </LinkButton>
           <AnchorButton href={whatsappHref("Hello BS Travels, I would like to plan a journey.")} target="_blank" rel="noopener noreferrer" variant="secondary" icon="whatsapp">
             Chat on WhatsApp
           </AnchorButton>
         </div>
+        <ul className="mx-auto mt-12 flex max-w-3xl flex-wrap justify-center gap-x-8 gap-y-3 text-sm" data-reveal>
+          <li>
+            <a href={telHref()} className="inline-flex min-h-11 items-center gap-2 text-ivory hover:text-gold">
+              <Icon name="phone" size={16} className="text-gold" /> {site.phone.display}
+            </a>
+          </li>
+          <li>
+            <a href={mailHref()} className="inline-flex min-h-11 items-center gap-2 text-ivory hover:text-gold">
+              <Icon name="mail" size={16} className="text-gold" /> {site.email.primary}
+            </a>
+          </li>
+          <li className="inline-flex min-h-11 items-center gap-2 text-ivory-dim">
+            <Icon name="pin" size={16} className="text-gold" /> {site.address.street}, {site.address.locality}, {site.address.country}
+          </li>
+        </ul>
         <span data-flight-node="landing" className="mx-auto mt-24 block h-px w-px" aria-hidden />
       </Container>
     </section>

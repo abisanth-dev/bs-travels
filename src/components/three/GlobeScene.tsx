@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
-import { PerspectiveCamera } from "@react-three/drei";
+import { PerspectiveCamera, useTexture } from "@react-three/drei";
+import { Aircraft } from "./Aircraft";
+import { enterAmount, exitAmount } from "./choreo";
 import * as THREE from "three";
 import { useStage } from "@/components/home/HomeExperience";
 import { destinations, origin } from "@/content/destinations";
@@ -179,10 +181,36 @@ function Arcs({ group, tier }: { group: React.RefObject<THREE.Group | null>; tie
         pl.quaternion.setFromRotationMatrix(m);
         pl.rotateY(-Math.PI / 2);
         pl.rotateX(Math.PI / 2);
-        pl.visible = local > 0.98 && (!selected || isSel);
+        pl.visible = local > 0.98 && !selected;
         pl.scale.setScalar(isSel ? 1.6 : 1);
       }
     });
+  });
+
+  // A small modelled aircraft flies the selected route.
+  const jet = useRef<THREE.Group>(null);
+  const jetPos = useRef(0);
+  useFrame((_, delta) => {
+    const g = jet.current;
+    const a = arcs.find((x) => x.slug === selected);
+    if (!g) return;
+    g.visible = Boolean(a);
+    if (!a) {
+      jetPos.current = 0;
+      return;
+    }
+    jetPos.current = (jetPos.current + delta * 0.11) % 1;
+    const u = jetPos.current;
+    a.curve.getPointAt(u, tmp);
+    a.curve.getPointAt(Math.min(1, u + 0.01), ahead);
+    up.copy(tmp).normalize();
+    m.lookAt(ahead, tmp, up);
+    g.position.copy(tmp);
+    g.quaternion.setFromRotationMatrix(m);
+    // the matrix points +z along the route; the aircraft's nose is +x
+    g.rotateY(-Math.PI / 2);
+    const s = 0.014 * Math.min(1, Math.sin(Math.PI * Math.min(u, 0.999)) * 6);
+    g.scale.setScalar(Math.max(0.004, s));
   });
 
   return (
@@ -195,6 +223,9 @@ function Arcs({ group, tier }: { group: React.RefObject<THREE.Group | null>; tie
           </mesh>
         </group>
       ))}
+      <group ref={jet} visible={false}>
+        <Aircraft detail="low" />
+      </group>
     </group>
   );
 }
@@ -301,8 +332,22 @@ function LabelSync({ globe }: { globe: React.RefObject<THREE.Group | null> }) {
   return null;
 }
 
+function Earth() {
+  const [map, rough] = useTexture(["/globe/earth.jpg", "/globe/earth-rough.jpg"]);
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.anisotropy = 8;
+  return (
+    <mesh>
+      <sphereGeometry args={[1, 96, 64]} />
+      <meshStandardMaterial map={map} roughnessMap={rough} roughness={1} metalness={0} />
+    </mesh>
+  );
+}
+
 export function GlobeScene({ tier }: { tier: SceneTier }) {
-  const { selected, globeInput, globeReveal } = useStage();
+  const { selected, globeInput, globeReveal, progress } = useStage();
+  const pass = progress("globe");
+  const stage = useRef<THREE.Group>(null);
   const globe = useRef<THREE.Group>(null);
   const arcGroup = useRef<THREE.Group>(null);
   const home = useMemo(() => facingRotation(origin.lat + 8, origin.lng - 25), []);
@@ -338,19 +383,26 @@ export function GlobeScene({ tier }: { tier: SceneTier }) {
       rot.current.y += delta * (globeReveal.current < 1 ? 0.03 : 0.06);
     }
     g.rotation.set(rot.current.x, rot.current.y, 0);
+    // rise into place as the section arrives; recede as it leaves
+    const st = stage.current;
+    if (st) {
+      const enter = enterAmount(Math.max(globeReveal.current * 0.4, pass.current));
+      const exit = exitAmount(pass.current);
+      st.position.y = (1 - enter) * -1.6 + exit * 1.2;
+      st.scale.setScalar(0.82 + enter * 0.18 - exit * 0.25);
+    }
   });
 
   return (
     <>
       <PerspectiveCamera makeDefault position={[0, 0, 3.3]} fov={42} />
-      <ambientLight intensity={0.6} />
+      <ambientLight intensity={0.35} />
+      <hemisphereLight args={["#9fb8ff", "#0a1326", 0.35]} />
+      <directionalLight position={[-3, 2, 3]} intensity={2.6} color="#fff1dc" />
       <Stars count={tier === "high" ? 500 : 220} />
+      <group ref={stage}>
       <group ref={globe}>
-        <mesh>
-          <sphereGeometry args={[1, 64, 48]} />
-          <meshBasicMaterial color="#0c1a33" />
-        </mesh>
-        <LandDots stride={tier === "high" ? 1 : 2} />
+        <Earth />
         <Markers />
         <Arcs group={arcGroup} tier={tier} />
       </group>
@@ -366,6 +418,7 @@ export function GlobeScene({ tier }: { tier: SceneTier }) {
           fragmentShader={atmoFragment}
         />
       </mesh>
+      </group>
       <LabelSync globe={globe} />
     </>
   );

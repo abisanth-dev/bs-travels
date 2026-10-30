@@ -1,111 +1,83 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useId, useState } from "react";
+import { useCallback, useId } from "react";
 import { Container } from "@/components/layout/Container";
 import { Icon } from "@/components/ui/Icon";
 import { buttonClass } from "@/components/ui/Button";
-import { checklistItemCount, checklists } from "@/content/checklists";
+import { ChecklistView } from "@/components/checklist/ChecklistView";
+import { checklistNotice, checklists } from "@/content/checklists";
+import { sceneState, useSceneState } from "./sceneState";
+import { SceneSlot } from "./StageSlot";
 
+/** Checklists: tick items here and the folder in the scene fills up. */
 export function PrepareSection() {
-  const router = useRouter();
   const id = useId();
-  const [slug, setSlug] = useState("canada");
+  const slug = useSceneState((s) => s.checklist.slug);
   const current = checklists.find((c) => c.slug === slug)!;
-  const preview = current.variants[0]?.groups[0]?.items.slice(0, 4) ?? [];
-  const total = checklistItemCount(current);
+  const onProgress = useCallback((done: number, total: number) => sceneState.set({ checklist: { slug, done, total } }), [slug]);
 
   return (
-    <section data-flight="prepare" aria-labelledby="prepare-title" className="relative overflow-x-clip bg-navy py-28 sm:py-36">
-      <Container className="grid gap-14 lg:grid-cols-2 lg:items-center">
-        <div data-reveal>
-          <p className="eyebrow">Journey preparation</p>
-          <h2 id="prepare-title" className="font-display mt-5 text-[clamp(2.4rem,5vw,4.4rem)] leading-[1.03]">
+    <section data-flight="prepare" aria-labelledby="prepare-title" className="relative isolate overflow-x-clip py-24 sm:py-32">
+      <Container className="grid gap-12 lg:grid-cols-[1fr_1fr]">
+        <div className="lg:sticky lg:top-[calc(var(--header-h)+2rem)] lg:self-start">
+          <p className="eyebrow" data-reveal>
+            Journey preparation
+          </p>
+          <h2 id="prepare-title" className="font-display mt-5 text-[clamp(2.4rem,5vw,4.4rem)] leading-[1.03]" data-reveal>
             Prepare with confidence.
           </h2>
-          <p className="mt-6 max-w-lg text-lg leading-relaxed text-ivory-dim">
-            Start gathering your documents with our checklists. Tick items off as you go, print the list, and bring it to your
-            consultation.
+          <p className="mt-5 max-w-lg text-lg leading-relaxed text-ivory-dim">
+            Choose a checklist and tick items off as you gather them. Print it and bring it to your consultation.
           </p>
-          <form
-            className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-end"
-            onSubmit={(e) => {
-              e.preventDefault();
-              router.push(`/checklists/${slug}`);
-            }}
-          >
-            <div className="flex-1">
-              <label htmlFor={id} className="block text-sm text-ivory-dim">
-                Destination
-              </label>
-              <div className="relative mt-2">
-                <select
-                  id={id}
-                  value={slug}
-                  onChange={(e) => setSlug(e.target.value)}
-                  className="min-h-12 w-full appearance-none rounded-full border border-line-strong bg-navy-2 px-5 pr-12 text-ivory"
-                >
-                  {checklists.map((c) => (
-                    <option key={c.slug} value={c.slug}>
-                      {c.title}
-                      {c.variants.length ? "" : " (ask us)"}
-                    </option>
-                  ))}
-                </select>
-                <Icon name="chevron-down" size={18} className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-ivory-faint" />
-              </div>
-            </div>
-            <button type="submit" className={buttonClass("primary")}>
-              Open checklist <Icon name="arrow-right" size={18} />
-            </button>
-          </form>
+          <SceneSlot name="folder" className="relative mt-8 aspect-[4/3] w-full overflow-hidden rounded-[2rem] border border-line" posterClassName="object-cover" />
+          <p className="mt-4 text-sm text-ivory-faint">{checklistNotice}</p>
         </div>
 
-        <div className="relative" data-reveal>
-          <div className="absolute -inset-6 -z-10 rounded-[2.5rem] bg-[radial-gradient(60%_60%_at_60%_40%,rgb(227_180_103/0.12),transparent)]" aria-hidden />
-          <div className="rotate-[-1.5deg] rounded-[1.75rem] border border-line-strong bg-ivory p-8 text-night shadow-[0_40px_80px_-30px_rgb(0_0_0/0.6)]">
-            <div className="flex items-start justify-between gap-4 border-b border-night/15 pb-5">
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-night/60">Document checklist</p>
-                <p className="font-display mt-1 text-3xl">{current.title}</p>
-              </div>
-              <Icon name="document" size={28} className="text-gold-deep" />
-            </div>
-            {preview.length ? (
-              <>
-                <ul className="mt-5 space-y-3">
-                  {preview.map((item, i) => (
-                    <li key={item} className="flex gap-3 text-[0.95rem] leading-snug">
-                      <span
-                        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
-                          i < 2 ? "border-gold-deep bg-gold-deep text-ivory" : "border-night/30"
-                        }`}
-                        aria-hidden
-                      >
-                        {i < 2 ? <Icon name="check" size={14} strokeWidth={2.2} /> : null}
-                      </span>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-6 text-sm text-night/60">
-                  Preview of {total} items, including sponsor documents where supplied.
-                </p>
-              </>
-            ) : (
-              <p className="mt-6 leading-relaxed text-night/75">
-                Contact us for the latest checklist. We will tell you what to prepare for your situation.
-              </p>
-            )}
-            <Link href={`/checklists/${slug}`} className="mt-6 inline-flex min-h-11 items-center gap-2 font-medium text-night underline underline-offset-4">
-              Open the full checklist <Icon name="arrow-right" size={16} />
-            </Link>
+        <div>
+          <label htmlFor={id} className="block text-sm text-ivory-dim">
+            Checklist
+          </label>
+          <div className="relative mt-2">
+            <select
+              id={id}
+              value={slug}
+              onChange={(e) => sceneState.set({ checklist: { slug: e.target.value, done: 0, total: 0 } })}
+              className="min-h-12 w-full appearance-none rounded-full border border-line-strong bg-navy-2 px-5 pr-12 text-ivory"
+            >
+              {checklists.map((c) => (
+                <option key={c.slug} value={c.slug}>
+                  {c.title}
+                  {c.variants.length ? "" : " (contact us)"}
+                </option>
+              ))}
+            </select>
+            <Icon name="chevron-down" size={18} className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-ivory-faint" />
           </div>
-          <p className="mt-6 text-sm text-ivory-faint">
-            Checklists are based on our own reference material, not official government lists. Requirements change, so confirm with
-            our team before you apply.
-          </p>
+
+          <div className="mt-6">
+            {current.variants.length ? (
+              <div
+                tabIndex={0}
+                role="region"
+                aria-label={`${current.title}, scrollable`}
+                className="max-h-[70svh] overflow-y-auto rounded-[1.5rem] border border-line bg-night/60 p-4 sm:p-6"
+              >
+                <ChecklistView key={current.slug} checklist={current} onProgress={onProgress} printHref={`/checklists/${current.slug}`} compact />
+              </div>
+            ) : (
+              <div className="rounded-[1.5rem] border border-line p-7">
+                <p className="font-display text-2xl">{current.title}</p>
+                <p className="mt-3 leading-relaxed text-ivory-dim">Contact us for the latest checklist. We will tell you what to prepare for your situation.</p>
+                <Link href={`/enquire?service=visa-consultancy`} className={buttonClass("primary", "mt-6")}>
+                  Ask for this checklist <Icon name="arrow-right" size={18} />
+                </Link>
+              </div>
+            )}
+          </div>
+          <Link href={`/checklists/${current.slug}`} className="mt-5 inline-flex min-h-11 items-center gap-2 text-ivory hover:text-gold">
+            Open the full checklist page <Icon name="arrow-right" size={16} />
+          </Link>
         </div>
       </Container>
     </section>

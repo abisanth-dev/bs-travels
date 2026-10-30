@@ -3,6 +3,7 @@ import { primaryNav, secondaryNav } from "@/content/navigation";
 import { services } from "@/content/services";
 import { mailHref, site, telHref, whatsappHref } from "@/content/site";
 import { Icon } from "@/components/ui/Icon";
+import { BackToTop } from "./BackToTop";
 import { Container } from "./Container";
 import { Logo } from "./Logo";
 
@@ -97,11 +98,12 @@ export function Footer() {
         </div>
       </Container>
       <div className="border-t border-line">
-        <Container className="flex flex-col gap-2 py-6 text-xs text-ivory-faint sm:flex-row sm:justify-between">
+        <Container className="flex flex-col gap-4 py-6 text-xs text-ivory-faint sm:flex-row sm:items-center sm:justify-between">
           <p>
             © {year} {site.legalName}. All rights reserved.
           </p>
           <p>Destination markers and guides are for enquiries only. BS Travels’ office is in Jaffna, Sri Lanka.</p>
+          <BackToTop />
         </Container>
       </div>
     </footer>
